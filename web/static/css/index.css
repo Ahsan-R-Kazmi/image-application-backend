@@ -1,0 +1,40 @@
+.header {
+    background-color: #022e48;
+    height: 100px;
+    padding: 10px;
+    font-size: 30px;
+    color: white;
+    text-align: center;
+}
+
+.card {
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    background-color: white;
+    height: 175px;
+    width: 100%;
+    color:  #333;
+    font-size: 20px;
+
+    top:0;
+    position:relative;
+    -webkit-transition: all 0.35s ease-out;
+    -moz-transition: all 0.35s ease-out;
+    -ms-transition: all 0.35s ease-out;
+    -o-transition: all 0.35s ease-out;
+    transition: all 0.35s ease-out;
+
+    margin-top: 20px;
+    padding: 15px 0px 15px 0px;
+}
+
+.card:hover {
+    box-shadow: 0 10px 20px 0 rgba(0,0,0,0.2);
+    font-size: 22px;
+    top: -12px;
+    text-decoration: none;
+}
