@@ -144,17 +144,20 @@ func HandleFileUpload(c *gin.Context) {
 		log.Printf("Consuming file %d of %d with name = %s to be downloaded to the database.",
 			index, len(files), filename)
 
-		if err := SaveFile(file, filename); err != nil {
+		if err := SaveFileToDatabase(file, filename); err != nil {
 			c.String(http.StatusInternalServerError,
 				fmt.Sprintf("%s", err.Error()))
 			return
 		}
+
+		c.SaveUploadedFile(file, "web/static/images")
 	}
 
 	c.String(http.StatusOK, fmt.Sprintf("Succesfully uploaded file(s)."))
+	return
 }
 
-func SaveFile(file *multipart.FileHeader, filename string) error {
+func SaveFileToDatabase(file *multipart.FileHeader, filename string) error {
 
 	// Check that a connection to the database can be opened.
 	err := db.Ping()
