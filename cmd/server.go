@@ -44,7 +44,12 @@ func main() {
 	router.Use(HandleCorsMiddleware)
 	router.MaxMultipartMemory = MaxMultipartFormMempory
 
-	router.POST("/upload", HandleFileUpload)
+	router.Static("/static", "web/static/")
+	fileApiV1 := router.Group("/api/v1/file")
+	{
+		fileApiV1.GET("/getAllFileNames", HandleGetFileNames)
+		fileApiV1.POST("/upload", HandleFileUpload)
+	}
 
 	router.Run(":8081")
 }
@@ -72,13 +77,56 @@ func HandleCorsMiddleware(c *gin.Context)  {
 	c.Next()
 }
 
+func HandleGetFileNames(c *gin.Context) {
+	log.Println("HandleGetFileNames attempting to get all the image file names.")
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in HandleGetFileNames after trying to get all filenames. The following " +
+				"error was encountered: ", r)
+
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting file names."))
+
+			return
+		}
+	}()
+
+	// Check that a connection to the database can be opened.
+	err := db.Ping()
+	HandleError(err)
+
+	rows, err := db.Query("SELECT name FROM image_file")
+	HandleError(err)
+
+	defer rows.Close()
+	var fileNames []string
+	for rows.Next() {
+		var fileName string
+		err = rows.Scan(&fileName)
+		HandleError(err)
+		fileNames = append(fileNames, fileName)
+	}
+
+	err = rows.Err()
+	HandleError(err)
+
+	log.Println("Returning response with file names.")
+	c.JSON(http.StatusOK, gin.H{"filenames": fileNames})
+
+	return
+}
+
+
 func HandleFileUpload(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Recovered in HandleFileUpload after trying to save uploaded file(s). The following " +
 				"error was encountered: ", r)
+
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in uploading file(s)."))
+
+			return
 		}
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Error in uploading file(s)."))
 	}()
 
 	log.Println("Consuming uploaded files.")
