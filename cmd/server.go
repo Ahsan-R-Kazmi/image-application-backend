@@ -92,7 +92,7 @@ func HandleGetAllFileInfo(c *gin.Context) {
 			log.Println("Recovered in HandleGetAllFileInfo after trying to get all filenames. The following " +
 				"error was encountered: ", r)
 
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting file names."))
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting file info."))
 
 			return
 		}
@@ -107,7 +107,7 @@ func HandleGetAllFileInfo(c *gin.Context) {
 
 	defer rows.Close()
 
-	fileInfoMap := make(map[string]FileInfo)
+	var fileInfoList []FileInfo
 	for rows.Next() {
 
 		var fileName string
@@ -121,14 +121,14 @@ func HandleGetAllFileInfo(c *gin.Context) {
 			StaticImageFileLocation + "/" + fileName,
 		}
 
-		fileInfoMap[fileName] = fileInfo
+		fileInfoList = append(fileInfoList, fileInfo)
 	}
 
 	err = rows.Err()
 	HandleError(err)
 
 	log.Println("Returning response with file information.")
-	c.JSON(http.StatusOK, fileInfoMap)
+	c.JSON(http.StatusOK, fileInfoList)
 
 	return
 }
