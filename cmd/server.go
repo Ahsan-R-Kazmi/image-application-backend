@@ -22,7 +22,14 @@ const (
 	dbname   = "image-application"
 )
 
-const MaxMultipartFormMempory = 32 << 20
+type FileInfo struct {
+	Name string 	`json:"name"`
+	IsFavorite bool `json:"isFavorite"`
+	FilePath string `json:"filePath"`
+}
+
+const MaxMultipartFormMemory = 32 << 20
+const StaticImageFileLocation = "http://localhost:8081/static/images"
 
 // Create a global reference to the db connection, so that it can be used in other functions.
 // https://stackoverflow.com/questions/40587008/how-do-i-handle-opening-closing-db-connection-in-a-go-app/40587071
@@ -42,12 +49,12 @@ func main() {
 
 	router := gin.Default()
 	router.Use(HandleCorsMiddleware)
-	router.MaxMultipartMemory = MaxMultipartFormMempory
+	router.MaxMultipartMemory = MaxMultipartFormMemory
 
 	router.Static("/static", "web/static/")
 	fileApiV1 := router.Group("/api/v1/file")
 	{
-		fileApiV1.GET("/getAllFileNames", HandleGetFileNames)
+		fileApiV1.GET("/getAllFileInfo", HandleGetAllFileInfo)
 		fileApiV1.POST("/upload", HandleFileUpload)
 	}
 
@@ -77,12 +84,12 @@ func HandleCorsMiddleware(c *gin.Context)  {
 	c.Next()
 }
 
-func HandleGetFileNames(c *gin.Context) {
-	log.Println("HandleGetFileNames attempting to get all the image file names.")
+func HandleGetAllFileInfo(c *gin.Context) {
+	log.Println("HandleGetAllFileInfo attempting to get the information for all files.")
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recovered in HandleGetFileNames after trying to get all filenames. The following " +
+			log.Println("Recovered in HandleGetAllFileInfo after trying to get all filenames. The following " +
 				"error was encountered: ", r)
 
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting file names."))
@@ -95,23 +102,33 @@ func HandleGetFileNames(c *gin.Context) {
 	err := db.Ping()
 	HandleError(err)
 
-	rows, err := db.Query("SELECT name FROM image_file")
+	rows, err := db.Query("SELECT name, is_favorite FROM image_file")
 	HandleError(err)
 
 	defer rows.Close()
-	var fileNames []string
+
+	fileInfoMap := make(map[string]FileInfo)
 	for rows.Next() {
+
 		var fileName string
-		err = rows.Scan(&fileName)
+		var isFavorite bool
+		err = rows.Scan(&fileName, &isFavorite)
 		HandleError(err)
-		fileNames = append(fileNames, fileName)
+
+		fileInfo := FileInfo{
+			fileName,
+			isFavorite,
+			StaticImageFileLocation + fileName,
+		}
+
+		fileInfoMap[fileName] = fileInfo
 	}
 
 	err = rows.Err()
 	HandleError(err)
 
-	log.Println("Returning response with file names.")
-	c.JSON(http.StatusOK, gin.H{"filenames": fileNames})
+	log.Println("Returning response with file information.")
+	c.JSON(http.StatusOK, fileInfoMap)
 
 	return
 }
@@ -144,13 +161,11 @@ func HandleFileUpload(c *gin.Context) {
 		log.Printf("Consuming file %d of %d with name = %s to be downloaded to the database.",
 			index, len(files), filename)
 
-		if err := SaveFileToDatabase(file, filename); err != nil {
-			c.String(http.StatusInternalServerError,
-				fmt.Sprintf("%s", err.Error()))
-			return
-		}
+		err := SaveFileToDatabase(file, filename)
+		HandleError(err)
 
-		c.SaveUploadedFile(file, "web/static/images")
+		err = c.SaveUploadedFile(file, "web/static/images/" + filename)
+		HandleError(err)
 	}
 
 	c.String(http.StatusOK, fmt.Sprintf("Succesfully uploaded file(s)."))
