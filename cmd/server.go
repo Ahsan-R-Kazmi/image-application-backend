@@ -161,8 +161,13 @@ func HandleFileUpload(c *gin.Context) {
 		log.Printf("Consuming file %d of %d with name = %s to be downloaded to the database.",
 			index, len(files), filename)
 
-		err := SaveFileToDatabase(file, filename)
-		HandleError(err)
+		if err := SaveFileToDatabase(file, filename); err != nil {
+			// Return with the error in this case, since it returns an error we want the user to see (i.e. that the
+			// the file already exists.)
+
+			c.String(http.StatusBadRequest, fmt.Sprintf(err.Error()))
+			return
+		}
 
 		err = c.SaveUploadedFile(file, "web/static/images/" + filename)
 		HandleError(err)
