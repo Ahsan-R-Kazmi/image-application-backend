@@ -118,7 +118,7 @@ func HandleGetAllFileInfo(c *gin.Context) {
 		fileInfo := FileInfo{
 			fileName,
 			isFavorite,
-			StaticImageFileLocation + fileName,
+			StaticImageFileLocation + "/" + fileName,
 		}
 
 		fileInfoMap[fileName] = fileInfo
