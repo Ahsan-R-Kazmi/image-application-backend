@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-
-	_ "github.com/lib/pq"
 )
 
 const (
@@ -56,6 +55,7 @@ func main() {
 	{
 		fileApiV1.GET("/getAllFileInfo", HandleGetAllFileInfo)
 		fileApiV1.POST("/upload", HandleFileUpload)
+		fileApiV1.PUT("/updateIsFavorite", HandleUpdateIsFavorite)
 	}
 
 	router.Run(":8081")
@@ -92,7 +92,7 @@ func HandleGetAllFileInfo(c *gin.Context) {
 			log.Println("Recovered in HandleGetAllFileInfo after trying to get all filenames. The following " +
 				"error was encountered: ", r)
 
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting file info."))
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error in getting image file information."))
 
 			return
 		}
@@ -133,7 +133,6 @@ func HandleGetAllFileInfo(c *gin.Context) {
 	return
 }
 
-
 func HandleFileUpload(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -147,7 +146,6 @@ func HandleFileUpload(c *gin.Context) {
 	}()
 
 	log.Println("Consuming uploaded files.")
-
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.String(http.StatusBadRequest,
@@ -208,4 +206,42 @@ func SaveFileToDatabase(file *multipart.FileHeader, filename string) error {
 	log.Printf("Saved file with name = %s to the database.", filename)
 
 	return nil
+}
+
+func HandleUpdateIsFavorite(c *gin.Context) {
+
+	var fileInfo FileInfo
+	err := c.BindJSON(&fileInfo)
+	if err != nil {
+		c.String(http.StatusBadRequest, "There was an error in parsing the request body.")
+		return
+	}
+
+	isFavorite := fileInfo.IsFavorite
+	fileName := fileInfo.Name
+	log.Printf("HandleUpdateIsFavorite attempting to update the is_favorite value to %t for image_file with name = %s.\n",
+		isFavorite, fileName)
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in HandleUpdateIsFavorite after trying to update the image_file is_favorite value." +
+				" The following error was encountered: ", r)
+
+			c.String(http.StatusInternalServerError, fmt.Sprintf("There was an error in favoriting the image."))
+			return
+		}
+	}()
+
+	// Check that a connection to the database can be opened.
+	err = db.Ping()
+	HandleError(err)
+
+	_, err = db.Exec("UPDATE image_file SET is_favorite = $1 WHERE name = $2", isFavorite, fileName)
+	HandleError(err)
+
+	log.Printf("Successfully updated the is_favorite value to %t for image_file with name = %s.\n", isFavorite,
+		fileName)
+	c.String(http.StatusOK, "Successfully updated the favorite setting for the image.")
+
+	return
 }
