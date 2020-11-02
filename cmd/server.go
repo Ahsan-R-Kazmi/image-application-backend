@@ -58,7 +58,7 @@ func main() {
 		fileApiV1.PUT("/updateIsFavorite", HandleUpdateIsFavorite)
 	}
 
-	router.Run(":8081")
+	log.Fatal(router.Run(":8081"))
 }
 
 func HandleError(err error) {
@@ -102,7 +102,7 @@ func HandleGetAllFileInfo(c *gin.Context) {
 	err := db.Ping()
 	HandleError(err)
 
-	rows, err := db.Query("SELECT name, is_favorite FROM image_file")
+	rows, err := db.Query("SELECT name, is_favorite FROM image_file ORDER by name ASC")
 	HandleError(err)
 
 	defer rows.Close()
